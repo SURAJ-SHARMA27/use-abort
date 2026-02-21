@@ -1,0 +1,42 @@
+{
+  "name": "use-abort",
+  "version": "1.0.0",
+  "description": "A React hook for safely handling async API calls with AbortController",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "build:cjs": "tsc",
+    "build:esm": "tsc --module esnext --outDir dist/esm && mv dist/esm/index.js dist/index.esm.js && rm -rf dist/esm",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "abort",
+    "abortcontroller",
+    "async",
+    "fetch",
+    "cancel",
+    "typescript"
+  ],
+  "author": "Suraj Sharma",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/use-abort.git"
+  }
+}
