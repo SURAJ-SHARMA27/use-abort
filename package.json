@@ -1,6 +1,6 @@
 {
   "name": "use-abort",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A React hook for safely handling async API calls with AbortController",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
