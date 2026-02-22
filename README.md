@@ -1,6 +1,6 @@
 # use-abort
 
-A lightweight, production-ready React hook for safely handling async API calls with automatic request cancellation using `AbortController`.
+React hook for auto-canceling async API calls with AbortController. Prevents race conditions, handles cleanup, and works with fetch/axios.
 
 ## Features
 
@@ -10,7 +10,7 @@ A lightweight, production-ready React hook for safely handling async API calls w
 ✅ **Error Handling** - Gracefully handles errors while ignoring abort errors  
 ✅ **TypeScript First** - Full type safety with TypeScript generics  
 ✅ **Zero Dependencies** - Only requires React (peer dependency)  
-✅ **Framework Agnostic** - Works with any async function (fetch, axios, etc.)
+✅ **Framework Agnostic** - Works with fetch, axios, or any async function
 
 ## Installation
 
@@ -18,43 +18,122 @@ A lightweight, production-ready React hook for safely handling async API calls w
 npm install use-abort
 ```
 
-```bash
-yarn add use-abort
-```
-
-```bash
-pnpm add use-abort
-```
-
-## Usage
-
-### Basic Example
+## Quick Start
 
 ```tsx
 import { useAbort } from "use-abort";
 
-// Define your async function (must accept AbortSignal as first parameter)
-const fetchUser = async (signal: AbortSignal, userId: string) => {
-  const response = await fetch(`/api/users/${userId}`, { signal });
-  if (!response.ok) throw new Error("Failed to fetch user");
-  return response.json();
+const fetchData = async (signal: AbortSignal, query: string) => {
+  const res = await fetch(`/api/search?q=${query}`, { signal });
+  return res.json();
 };
 
-function UserProfile({ userId }: { userId: string }) {
-  const { run, cancel, data, error, loading } = useAbort(fetchUser);
+function SearchComponent() {
+  const { run, data, loading, error } = useAbort(fetchData);
 
   useEffect(() => {
-    run(userId);
-  }, [userId, run]);
+    run(searchQuery);
+  }, [searchQuery]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
-  if (data) return <div>User: {data.name}</div>;
-  return null;
+  return <div>{data?.results}</div>;
 }
 ```
 
-### Search with Auto-Cancel Example
+That's it! Just 3 steps: define your async function, use the hook, call `run()`.
+
+---
+
+## The Problem
+
+**Without `use-abort`, search inputs cause race conditions:**
+
+```tsx
+// ❌ BROKEN: Race condition - slower responses overwrite newer ones!
+function SearchBox() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!query) return;
+
+    setLoading(true);
+    fetch(`/api/search?q=${query}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setResults(data); // ⚠️ Problem: Old request can overwrite new results!
+        setLoading(false);
+      });
+  }, [query]);
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      {loading && <div>Loading...</div>}
+      {results && <div>{results.length} results</div>}
+    </div>
+  );
+}
+```
+
+**What goes wrong:**
+
+1. User types "react" → Request A sent (takes 2000ms)
+2. User types "vue" → Request B sent (takes 500ms)
+3. Request B finishes first → Shows Vue results ✅
+4. Request A finishes late → **Overwrites with React results** ❌
+
+**Result:** UI shows wrong data! User typed "vue" but sees "react" results.
+
+---
+
+## The Solution
+
+**With `use-abort`, requests are automatically cancelled:**
+
+```tsx
+// ✅ FIXED: Previous requests auto-cancelled, no race conditions!
+import { useAbort } from "use-abort";
+
+const searchAPI = async (signal: AbortSignal, query: string) => {
+  const res = await fetch(`/api/search?q=${query}`, { signal });
+  return res.json();
+};
+
+function SearchBox() {
+  const [query, setQuery] = useState("");
+  const { run, data, loading } = useAbort(searchAPI);
+
+  useEffect(() => {
+    if (query) run(query); // Auto-cancels previous request!
+  }, [query]);
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      {loading && <div>Loading...</div>}
+      {data && <div>{data.length} results</div>}
+    </div>
+  );
+}
+```
+
+**What happens now:**
+
+1. User types "react" → Request A sent
+2. User types "vue" → **Request A cancelled** → Request B sent
+3. Request B finishes → Shows Vue results ✅
+4. Request A already cancelled → Doesn't update anything ✅
+
+**Result:** UI always shows correct data! 🎉
+
+---
+
+## More Examples
+
+### Debounced Search with Manual Cancel
 
 ```tsx
 import { useAbort } from "use-abort";
